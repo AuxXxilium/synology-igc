@@ -20,7 +20,7 @@
 #include "backport_overflow.h"
 
 #define DRV_SUMMARY	"Intel(R) 2.5G Ethernet Linux Driver"
-#define DRV_VERSION	"1.2.1"
+#define DRV_VERSION "1.3.0"
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
@@ -35,6 +35,8 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 char igc_driver_name[] = "igc";
+char igc_driver_version[] = DRV_VERSION;
+
 static const char igc_driver_string[] = DRV_SUMMARY;
 static const char igc_copyright[] =
 	"Copyright(c) 2018 Intel Corporation. Copyright(c) 2022 Jim Ma.";
@@ -374,7 +376,7 @@ static void igc_clean_rx_ring(struct igc_ring *rx_ring)
 					buffer_info->dma,
  				    igc_rx_pg_size(rx_ring),
 				    DMA_FROM_DEVICE);
-		__free_page(buffer_info->page);
+		__page_frag_cache_drain(buffer_info->page, buffer_info->pagecnt_bias);
 
 		i++;
 		if (i == rx_ring->count)
@@ -1763,7 +1765,7 @@ static void igc_put_rx_buffer(struct igc_ring *rx_ring,
 		dma_unmap_page(rx_ring->dev, rx_buffer->dma,
 					igc_rx_pg_size(rx_ring),
 					DMA_FROM_DEVICE);
-		__free_page(rx_buffer->page);
+		__page_frag_cache_drain(rx_buffer->page, rx_buffer->pagecnt_bias);
 	}
 
 	/* clear contents of rx_buffer */
@@ -1801,7 +1803,7 @@ static bool igc_alloc_mapped_page(struct igc_ring *rx_ring,
 	 * there isn't much point in holding memory we can't use
 	 */
 	if (dma_mapping_error(rx_ring->dev, dma)) {
-		__free_page(page);
+		__free_pages(page, igc_rx_pg_order(rx_ring));
 
 		rx_ring->rx_stats.alloc_failed++;
 		return false;
@@ -4142,20 +4144,12 @@ bool igc_has_link(struct igc_adapter *adapter)
 	 * false until the igc_check_for_link establishes link
 	 * for copper adapters ONLY
 	 */
-	switch (hw->phy.media_type) {
-	case igc_media_type_copper:
-		if (!hw->mac.get_link_status)
-			return true;
-		hw->mac.ops.check_for_link(hw);
-		link_active = !hw->mac.get_link_status;
-		break;
-	default:
-	case igc_media_type_unknown:
-		break;
-	}
+	if (!hw->mac.get_link_status)
+		return true;
+	hw->mac.ops.check_for_link(hw);
+	link_active = !hw->mac.get_link_status;
 
-	if (hw->mac.type == igc_i225 &&
-	    hw->phy.id == I225_I_PHY_ID) {
+	if (hw->mac.type == igc_i225) {
 		if (!netif_carrier_ok(adapter->netdev)) {
 			adapter->flags &= ~IGC_FLAG_NEED_LINK_UPDATE;
 		} else if (!(adapter->flags & IGC_FLAG_NEED_LINK_UPDATE)) {
