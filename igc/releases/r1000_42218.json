@@ -3,9 +3,9 @@
 
   "files": [
     {
-      "name": "igc-geminilake.tgz",
-      "url": "https://raw.githubusercontent.com/jim3ma/synology-igc/master/igc/releases/igc-geminilake.tgz",
-      "sha256": "b66aa18f4104c1649987e0fafff2380686d0f683b7d4d55a5f9c4f150393988b",
+      "name": "igc-r1000.tgz",
+      "url": "https://raw.githubusercontent.com/jim3ma/synology-igc/master/igc/releases/igc-r1000.tgz",
+      "sha256": "e5d52d9aaf0f7c9a55d5c6e046c8cce023b2aa05bad626f69660736ea333e60b",
       "packed": true
     },
     {
